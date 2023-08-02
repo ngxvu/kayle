@@ -1,92 +1,79 @@
-# kayle 
+# Meradia
+
+![flow.png](flow.png)
+
+Link: https://merakilab-space.notion.site/Update-image-flow-c4d8b7ac4f4842049d7162621943db45?pvs=4
+
+Để upload ảnh lên S3 storage bằng ReactJS và Golang, bạn có thể làm theo các bước sau:
+
+### **Bước 1: Gọi Backend để lấy Presigned URL**
+
+- Trong frontend (ReactJS), gửi một yêu cầu HTTP tới backend (Golang) để lấy presigned URL. Đảm bảo rằng backend đã cấu hình và có quyền truy cập vào Amazon S3.
+- Backend sẽ nhận yêu cầu, sử dụng credential của nó để kết nối tới Amazon S3 và tạo một presigned URL. Presigned URL này sẽ được tạo với quyền truy cập cho việc upload (ACL) và có thời hạn.
+- Backend sẽ trả về presigned URL cho frontend.
+
+### **Bước 2: Tải ảnh lên S3 bằng Presigned URL**
+
+- Trong frontend, sử dụng presigned URL đã nhận được để tải ảnh lên S3. Bạn có thể sử dụng các thư viện như Axios hoặc Fetch để thực hiện yêu cầu HTTP POST tới presigned URL với ảnh dữ liệu đính kèm.
+- Khi yêu cầu này được gửi đi, ảnh sẽ được truyền từ frontend trực tiếp tới S3 thông qua presigned URL.
+
+### **Bước 3: Xác nhận và lưu thông tin vào Backend**
+
+- Sau khi quá trình upload hoàn thành, frontend có thể gửi một yêu cầu khác tới backend để thông báo rằng quá trình upload đã hoàn tất. Yêu cầu này có thể chứa thông tin về ảnh đã upload hoặc bất kỳ thông tin khác liên quan.
+- Backend có thể tiếp nhận yêu cầu này, xác nhận rằng quá trình upload đã hoàn thành và lưu thông tin về ảnh vào cơ sở dữ liệu hoặc bất kỳ hệ thống nào khác.
+- Sau khi lưu thông tin thành công, backend có thể trả về một liên kết (link) tới ảnh đã lưu, để frontend có thể truy cập và hiển thị ảnh.
+
+Đây là một quy trình cơ bản để upload ảnh lên S3 storage sử dụng ReactJS và Golang. Tuy nhiên, cần lưu ý rằng cài đặt chi tiết của từng bước có thể thay đổi tùy thuộc vào yêu cầu và cấu hình của bạn.
 
 
+---
+# How to start source:
+- Make sure you have read the [flow](flow.png) and understand it. By now you should understand how presigned url works and how to upload image to S3. Also you should know about imageproxy https://github.com/willnorris/imageproxy  and how to use it.
+- Make sure you have the development environment matches with these notes below so we can mitigate any problems of version mismatch.
+  - OS: Should use Linux (latest Ubuntu or your choice of distro) if possible. Windows does not play well with Docker and some other techs we may use. If you still prefer to use Windows, so you may have to cope with problems by yourself later since we're assuming everything will be developed and run on Linux.
+  - Install Docker CE (latest) and docker-compose.
+  - Install git for manage source code.
+  - IDE of your choice, recommended Goland or VS Code.
 
-## Getting started
+### Development 
+  - Clone code to local: ``` https://gitlab.com/merakilab9/meradia.git```
+  - Add .env file: follow .env.example
+  - Start development environment with Docker: ```make compose dev```
+  - After started, services will be available at localhost with ports as below:
+  ```Backend: 8099```
+  ```ImageProxy: 8022```
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+### Testing api:
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+#### 1. PreUpload:
+    ```curl
+    curl --location 'localhost:8099/api/v1/media/pre-upload' \
+    --header 'Content-Type: application/json' \
+    --data '{
+        "media_type": "png"
+    }'
+    ```
 
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
-
+#### 2. Upload: BE test only; FE will use presigned url to upload
+* get [PRESIGN_URL] from PreUpload api response
+```curl
+curl --location 'localhost:8099/api/v1/media/upload' \
+--form 'upload_url="[PRESIGN_URL]"' \
+--form 'file=@"/C:/Users/AlienWare/Downloads/3 copy 1.png"'
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/merakilab9/meracrawler/kayle.git
-git branch -M main
-git push -uf origin main
+
+#### 3. Pos upload: Learn about imageproxy here: https://github.com/willnorris/imageproxy 
+* get [FILE_NAME] from PreUpload api response
+```curl
+curl --location 'localhost:8099/api/v1/media/pos-upload' \
+--header 'Content-Type: application/json' \
+--data '{
+    "name": "[FILE_NAME]",
+    "media_type": "png",
+    "type_to_crop": "avatar"
+}'
 ```
 
-## Integrate with your tools
-
-- [ ] [Set up project integrations](https://gitlab.com/merakilab9/meracrawler/kayle/-/settings/integrations)
-
-## Collaborate with your team
-
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thank you to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+#### Contact for support:
+- Merakilab
+- mail: pxthang97@gmail.com
