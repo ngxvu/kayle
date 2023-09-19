@@ -1,14 +1,12 @@
 package route
 
 import (
-	"github.com/gin-contrib/pprof"
-	"gitlab.com/merakilab9/meracore/ginext"
+	"fmt"
+	"github.com/elastic/go-elasticsearch/v8"
 	"gitlab.com/merakilab9/meracore/service"
-	"gitlab.com/merakilab9/meracrawler/kayle/conf"
-	"gitlab.com/merakilab9/meracrawler/kayle/pkg/repo/pg"
-
-	handlerTransform "gitlab.com/merakilab9/meracrawler/kayle/pkg/handler"
-	serviceTransform "gitlab.com/merakilab9/meracrawler/kayle/pkg/service"
+	"io/ioutil"
+	"log"
+	"net/http"
 )
 
 type Service struct {
@@ -16,27 +14,43 @@ type Service struct {
 }
 
 func NewService() *Service {
-
 	s := &Service{
-		service.NewApp("kayle Service", "v1.0"),
-	}
-	db := s.GetDB()
-
-	if !conf.LoadEnv().DbDebugEnable {
-		db = db.Debug()
+		BaseApp: service.NewApp("Kayle Service", "v1.0"),
 	}
 
-	repoPG := pg.NewPGRepo(db)
-	var transformService = serviceTransform.NewTransformService(repoPG)
-	transformHandle := handlerTransform.NewTransformHandlers(transformService)
-	migrateHandle := handlerTransform.NewMigrationHandler(db)
+	_, err := elasticsearch.NewDefaultClient()
+	if err != nil {
+		log.Fatalf("Error creating the client: %s", err)
+	}
+	log.Println(elasticsearch.Version)
 
-	pprof.Register(s.Router)
+	url := "https://localhost:9200"
+	method := "GET"
 
-	v1Api := s.Router.Group("/api/v1")
-	v1Api.POST("/media/pre-upload", ginext.WrapHandler(transformHandle.Transform))
+	client := &http.Client{}
+	req, err := http.NewRequest(method, url, nil)
 
-	v1Api.POST("/internal/migrate", migrateHandle.Migrate)
+	if err != nil {
+		fmt.Println(err)
+		return s
+	}
+	req.Header.Add("Authorization", "Basic ZWxhc3RpYzp0OTQ0d1RObUNnVndLcVp3MnRSbQ==")
+
+	res, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+		return s
+	}
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		fmt.Println(err)
+		return s
+	}
+	fmt.Println(string(body))
+
+	//Console Menu
 
 	return s
 }

@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	APPNAME = "meradia"
+	APPNAME = "Kayle"
 )
 
 func main() {
