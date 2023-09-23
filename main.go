@@ -18,7 +18,6 @@ func main() {
 	conf.SetEnv()
 	logger.Init(APPNAME)
 	utils.LoadMessageError()
-
 	app := route.NewService()
 	ctx := context.Background()
 	err := app.Start(ctx)

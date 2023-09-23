@@ -10,11 +10,10 @@ import (
 type AppConfig struct {
 	ServerEnv string `env:"SERVER_ENV" envDefault:"stg"`
 	Port      string `env:"PORT"`
-	// Database
-	DBHost        string `env:"DB_HOST"`
-	DBPort        string `env:"DB_PORT"`
-	DBUser        string `env:"DB_USER"`
-	DBPass        string `env:"DB_PASS"`
+	// MongoDB
+	MongoDBHost   string `env:"MONGODB_HOST"`
+	MongoDBPort   string `env:"MONGODB_PORT"`
+	MongoDBName   string `env:"MONGODB_DBNAME"`
 	DBName        string `env:"DB_NAME"`
 	EnableDB      string `env:"ENABLE_DB" envDefault:"true"`
 	DbDebugEnable bool   `env:"DB_DEBUG_ENABLE" envDefault:"true"`
