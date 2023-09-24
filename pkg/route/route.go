@@ -101,10 +101,33 @@ func NewService() *Service {
 		bson.Unmarshal(convertByte, &catestruct)
 		categoryId := catestruct["_id"].(primitive.ObjectID).Hex()
 		jsonString, _ := json.Marshal(categoryId)
-		request := esapi.IndexRequest{Index: "list_ID", DocumentID: categoryId, Body: strings.NewReader(string(jsonString))}
+		request := esapi.IndexRequest{Index: "stsc", DocumentID: categoryId, Body: strings.NewReader(string(jsonString))}
 		request.Do(context.Background(), es)
 		list_ID = append(list_ID, categoryId)
 		print(len(list_ID), " _id read\n")
 	}
+
+	config = elasticsearch.Config{
+		Addresses: []string{
+			"https://localhost:9200/stsc/_search",
+		},
+		Username: "elastic",
+		Password: "2pcFJEAmaS+7GM3Q5M0h",
+		CACert:   cert,
+	}
+	es, err = elasticsearch.NewClient(config)
+
+	if err != nil {
+		log.Fatalf("Error creating the client: %s", err)
+	}
+
+	res, err = es.Info()
+	if err != nil {
+		log.Fatalf("Error getting response: %s", err)
+	}
+
+	defer res.Body.Close()
+	log.Println(res)
+
 	return s
 }
