@@ -2,14 +2,20 @@ package route
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/elastic/go-elasticsearch/v8"
+	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"gitlab.com/merakilab9/meracore/logger"
 	"gitlab.com/merakilab9/meracore/service"
 	"gitlab.com/merakilab9/meracrawler/kayle/conf"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"io/ioutil"
 	"log"
+	"strings"
 )
 
 type Service struct {
@@ -55,44 +61,50 @@ func NewService() *Service {
 	if err = cursor.All(context.TODO(), &results); err != nil {
 		panic(err)
 	}
+	var catestruct map[string]interface{}
+	var list_ID []string
+	// display the documentsid retrieved
 
-	// display the documents retrieved
-	fmt.Println("displaying all results in a collection")
-	for _, result := range results {
-		fmt.Println(result)
+	// ===================== Elastic Client =====================
+	_, err = elasticsearch.NewDefaultClient()
+	if err != nil {
+		log.Fatalf("Error creating the client: %s", err)
 	}
-	// Elastic Client
-	//_, err = elasticsearch.NewDefaultClient()
-	//if err != nil {
-	//	log.Fatalf("Error creating the client: %s", err)
-	//}
-	//log.Println(elasticsearch.Version)
-	//
-	//cert, _ := ioutil.ReadFile("./http_ca.crt")
-	//
-	//config := elasticsearch.Config{
-	//	Addresses: []string{
-	//		"https://localhost:9200",
-	//	},
-	//	Username: "elastic",
-	//	Password: "1L1QM=ig=VW+DFNkKIfP",
-	//	CACert:   cert,
-	//	//CloudID:  "4RaKu4oBxCOx6W9p3sxl",
-	//	//APIKey:   "NGhhTXU0b0J4Q094Nlc5cENjeWc6MU1PTXdfTlJSd3lBN1BZZm1UX04tZw",
-	//}
-	//es, err := elasticsearch.NewClient(config)
-	//
-	//if err != nil {
-	//	log.Fatalf("Error creating the client: %s", err)
-	//}
-	//
-	//res, err := es.Info()
-	//if err != nil {
-	//	log.Fatalf("Error getting response: %s", err)
-	//}
-	//
-	//defer res.Body.Close()
-	//log.Println(res)
+	log.Println(elasticsearch.Version)
 
+	cert, _ := ioutil.ReadFile("./http	_ca.crt")
+
+	config := elasticsearch.Config{
+		Addresses: []string{
+			"https://localhost:9200",
+		},
+		Username: "elastic",
+		Password: "2pcFJEAmaS+7GM3Q5M0h",
+		CACert:   cert,
+	}
+	es, err := elasticsearch.NewClient(config)
+
+	if err != nil {
+		log.Fatalf("Error creating the client: %s", err)
+	}
+
+	res, err := es.Info()
+	if err != nil {
+		log.Fatalf("Error getting response: %s", err)
+	}
+
+	defer res.Body.Close()
+	log.Println(res)
+
+	for _, result := range results {
+		convertByte, _ := bson.Marshal(result)
+		bson.Unmarshal(convertByte, &catestruct)
+		categoryId := catestruct["_id"].(primitive.ObjectID).Hex()
+		jsonString, _ := json.Marshal(categoryId)
+		request := esapi.IndexRequest{Index: "list_ID", DocumentID: categoryId, Body: strings.NewReader(string(jsonString))}
+		request.Do(context.Background(), es)
+		list_ID = append(list_ID, categoryId)
+		print(len(list_ID), " _id read\n")
+	}
 	return s
 }
