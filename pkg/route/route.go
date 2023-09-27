@@ -2,7 +2,6 @@ package route
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
@@ -62,7 +61,6 @@ func NewService() *Service {
 		panic(err)
 	}
 	var catestruct map[string]interface{}
-	var list_ID []string
 	// display the documentsid retrieved
 
 	// ===================== Elastic Client =====================
@@ -79,7 +77,7 @@ func NewService() *Service {
 			"https://localhost:9200",
 		},
 		Username: "elastic",
-		Password: "2pcFJEAmaS+7GM3Q5M0h",
+		Password: "GMrbr1VCmy_wHkdeN_rJ",
 		CACert:   cert,
 	}
 	es, err := elasticsearch.NewClient(config)
@@ -96,38 +94,55 @@ func NewService() *Service {
 	defer res.Body.Close()
 	log.Println(res)
 
+	//index := "listid"
+	//mapping := `{
+	// "settings": {
+	//   "number_of_shards": 1
+	// },
+	// "mappings": {
+	//   "properties": {
+	//     "field1": {
+	//       "type": "text"
+	//     }
+	//   }
+	// }
+	//}`
+	//
+	//reses01, err := es.Indices.Create(
+	//	index,
+	//	es.Indices.Create.WithBody(strings.NewReader(mapping)),
+	//)
+	//fmt.Println(reses01, err)
+
 	for _, result := range results {
 		convertByte, _ := bson.Marshal(result)
 		bson.Unmarshal(convertByte, &catestruct)
 		categoryId := catestruct["_id"].(primitive.ObjectID).Hex()
-		jsonString, _ := json.Marshal(categoryId)
-		request := esapi.IndexRequest{Index: "stsc", DocumentID: categoryId, Body: strings.NewReader(string(jsonString))}
-		request.Do(context.Background(), es)
-		list_ID = append(list_ID, categoryId)
-		print(len(list_ID), " _id read\n")
+		req := esapi.IndexRequest{
+			Index:      "listid",                                // Index name
+			Body:       strings.NewReader(`{"title" : "Test"}`), // Document body
+			DocumentID: categoryId,                              // Document ID
+			Refresh:    "true",                                  // Refresh
+		}
+
+		res, err := req.Do(context.Background(), es)
+		if err != nil {
+			log.Fatalf("Error getting response: %s", err)
+		}
+		defer res.Body.Close()
+
+		log.Println(res)
 	}
 
-	config = elasticsearch.Config{
-		Addresses: []string{
-			"https://localhost:9200/stsc/_search",
-		},
-		Username: "elastic",
-		Password: "2pcFJEAmaS+7GM3Q5M0h",
-		CACert:   cert,
-	}
-	es, err = elasticsearch.NewClient(config)
+	searchResp, err := es.Search(
+		es.Search.WithContext(context.Background()),
+		es.Search.WithIndex("listid"),
+		es.Search.WithQuery("Test"),
+		es.Search.WithTrackTotalHits(true),
+		es.Search.WithPretty(),
+	)
 
-	if err != nil {
-		log.Fatalf("Error creating the client: %s", err)
-	}
-
-	res, err = es.Info()
-	if err != nil {
-		log.Fatalf("Error getting response: %s", err)
-	}
-
-	defer res.Body.Close()
-	log.Println(res)
-
+	fmt.Println(searchResp, err)
 	return s
+
 }
