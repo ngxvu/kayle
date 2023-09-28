@@ -2,12 +2,15 @@ package route
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/elastic/go-elasticsearch/v8"
+	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"gitlab.com/merakilab9/meracore/logger"
 	"gitlab.com/merakilab9/meracore/service"
 	"gitlab.com/merakilab9/meracrawler/kayle/conf"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"io/ioutil"
@@ -58,7 +61,7 @@ func NewService() *Service {
 	if err = cursor.All(context.TODO(), &results); err != nil {
 		panic(err)
 	}
-	//var catestruct map[string]interface{}
+	var catestruct map[string]interface{}
 	// display the documentsid retrieved
 
 	// ===================== Elastic Client =====================
@@ -92,45 +95,119 @@ func NewService() *Service {
 	defer res.Body.Close()
 	log.Println(res)
 
-	index := "listid"
-	mapping := `{
-	"settings": {
-	"number_of_shards": 1
-	},
-	"mappings": {
-	"properties": {
-	  "field1": {
-	    "type": "text"
-	  }
-	}
-	}
-	}`
+	index := "listcategory"
+	//mapping := `{
+	//"settings": {
+	//"number_of_shards": 1
+	//},
+	//"mappings": {
+	//  "properties": {
+	//    "catid": {
+	//      "type": "long"
+	//    },
+	//    "children": {
+	//      "properties": {
+	//        "catid": {
+	//          "type": "long"
+	//        },
+	//        "displayname": {
+	//          "type": "text",
+	//          "fields": {
+	//            "keyword": {
+	//              "type": "keyword",
+	//              "ignore_above": 256
+	//            }
+	//          }
+	//        },
+	//        "image": {
+	//          "type": "text",
+	//          "fields": {
+	//            "keyword": {
+	//              "type": "keyword",
+	//              "ignore_above": 256
+	//            }
+	//          }
+	//        },
+	//        "level": {
+	//          "type": "long"
+	//        },
+	//        "name": {
+	//          "type": "text",
+	//          "fields": {
+	//            "keyword": {
+	//              "type": "keyword",
+	//              "ignore_above": 256
+	//            }
+	//          }
+	//        },
+	//        "parentcatid": {
+	//          "type": "long"
+	//        }
+	//      }
+	//    },
+	//    "displayname": {
+	//      "type": "text",
+	//      "fields": {
+	//        "keyword": {
+	//          "type": "keyword",
+	//          "ignore_above": 256
+	//        }
+	//      }
+	//    },
+	//    "image": {
+	//      "type": "text",
+	//      "fields": {
+	//        "keyword": {
+	//          "type": "keyword",
+	//          "ignore_above": 256
+	//        }
+	//      }
+	//    },
+	//    "level": {
+	//      "type": "long"
+	//    },
+	//    "name": {
+	//      "type": "text",
+	//      "fields": {
+	//        "keyword": {
+	//          "type": "keyword",
+	//          "ignore_above": 256
+	//        }
+	//      }
+	//    },
+	//    "parentcatid": {
+	//      "type": "long"
+	//    }
+	//  }
+	//}
+	//}`
 
-	reses01, err := es.Indices.Create(
-		index,
-		es.Indices.Create.WithBody(strings.NewReader(mapping)),
-	)
-	fmt.Println(reses01, err)
+	//reses01, err := es.Indices.Create(
+	//	index,
+	//	es.Indices.Create.WithBody(strings.NewReader(mapping)),
+	//)
+	//fmt.Println(reses01, err)
 
-	//for _, result := range results {
-	//	convertByte, _ := bson.Marshal(result)
-	//	bson.Unmarshal(convertByte, &catestruct)
-	//	categoryId := catestruct["_id"].(primitive.ObjectID).Hex()
-	//	//req := esapi.IndexRequest{
-	//	Index:      "listid",                   // Index name
-	//	Body:       strings.NewReader("test1"), // Document body
-	//	DocumentID: categoryId,                 // Document ID
-	//	Refresh:    "true",                     // Refresh
-	//}
-	//res, err := req.Do(context.Background(), es)
-	//if err != nil {
-	//	log.Fatalf("Error getting response: %s", err)
-	//}
-	//defer res.Body.Close()
-	//
-	//log.Println(res)
-	//fmt.Println(categoryId)
-	//}
+	for _, result := range results {
+		convertByte, _ := bson.Marshal(result)
+		bson.Unmarshal(convertByte, &catestruct)
+		categoryId := catestruct["_id"].(primitive.ObjectID).Hex()
+		jsonString, _ := json.Marshal(result)
+		req := esapi.IndexRequest{
+			Index:      index,                                 // Index name
+			Body:       strings.NewReader(string(jsonString)), // Document body
+			DocumentID: categoryId,                            // Document ID
+			Refresh:    "true",                                // Refresh
+		}
+		res, err := req.Do(context.Background(), es)
+		if err != nil {
+			log.Fatalf("Error getting response: %s", err)
+		}
+		defer res.Body.Close()
+
+		log.Println(res)
+
+	}
 
 	//searchResp, err := es.Search(
 	//	es.Search.WithContext(context.Background()),
