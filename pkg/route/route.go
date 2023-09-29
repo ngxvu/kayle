@@ -10,7 +10,6 @@ import (
 	"gitlab.com/merakilab9/meracore/service"
 	"gitlab.com/merakilab9/meracrawler/kayle/conf"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"io/ioutil"
@@ -33,8 +32,8 @@ func NewService() *Service {
 	)
 
 	// Send a ping to confirm a successful connection
-	var result bson.M
-	if err := client.Database("shopee").RunCommand(context.TODO(), bson.D{{"ping", 1}}).Decode(&result); err != nil {
+	var ping bson.M
+	if err := client.Database("shopee").RunCommand(context.TODO(), bson.D{{"ping", 1}}).Decode(&ping); err != nil {
 		panic(err)
 	}
 	fmt.Println("Pinged your deployment. You successfully connected to MongoDB!")
@@ -48,7 +47,6 @@ func NewService() *Service {
 		log.Printf("Không ping được tới MongoDB. Không thể kết nối với MongoDB: %v", err)
 		panic(err)
 	}
-
 	categoryCollection := client.Database("shopee").Collection("category")
 
 	cursor, err := categoryCollection.Find(context.TODO(), bson.D{})
@@ -61,8 +59,11 @@ func NewService() *Service {
 	if err = cursor.All(context.TODO(), &results); err != nil {
 		panic(err)
 	}
-	var catestruct map[string]interface{}
-	// display the documentsid retrieved
+
+	// Exclude _id field from each document
+	for i := range results {
+		delete(results[i], "_id")
+	}
 
 	// ===================== Elastic Client =====================
 	_, err = elasticsearch.NewDefaultClient()
@@ -78,7 +79,7 @@ func NewService() *Service {
 			"https://localhost:9200",
 		},
 		Username: "elastic",
-		Password: "G2kTqgSdZcCjtOpVqtFU",
+		Password: "_9w6WrKgqjNZhiEvFsvM",
 		CACert:   cert,
 	}
 	es, err := elasticsearch.NewClient(config)
@@ -96,108 +97,17 @@ func NewService() *Service {
 	log.Println(res)
 
 	index := "listcategory"
-	//mapping := `{
-	//"settings": {
-	//"number_of_shards": 1
-	//},
-	//"mappings": {
-	//  "properties": {
-	//    "catid": {
-	//      "type": "long"
-	//    },
-	//    "children": {
-	//      "properties": {
-	//        "catid": {
-	//          "type": "long"
-	//        },
-	//        "displayname": {
-	//          "type": "text",
-	//          "fields": {
-	//            "keyword": {
-	//              "type": "keyword",
-	//              "ignore_above": 256
-	//            }
-	//          }
-	//        },
-	//        "image": {
-	//          "type": "text",
-	//          "fields": {
-	//            "keyword": {
-	//              "type": "keyword",
-	//              "ignore_above": 256
-	//            }
-	//          }
-	//        },
-	//        "level": {
-	//          "type": "long"
-	//        },
-	//        "name": {
-	//          "type": "text",
-	//          "fields": {
-	//            "keyword": {
-	//              "type": "keyword",
-	//              "ignore_above": 256
-	//            }
-	//          }
-	//        },
-	//        "parentcatid": {
-	//          "type": "long"
-	//        }
-	//      }
-	//    },
-	//    "displayname": {
-	//      "type": "text",
-	//      "fields": {
-	//        "keyword": {
-	//          "type": "keyword",
-	//          "ignore_above": 256
-	//        }
-	//      }
-	//    },
-	//    "image": {
-	//      "type": "text",
-	//      "fields": {
-	//        "keyword": {
-	//          "type": "keyword",
-	//          "ignore_above": 256
-	//        }
-	//      }
-	//    },
-	//    "level": {
-	//      "type": "long"
-	//    },
-	//    "name": {
-	//      "type": "text",
-	//      "fields": {
-	//        "keyword": {
-	//          "type": "keyword",
-	//          "ignore_above": 256
-	//        }
-	//      }
-	//    },
-	//    "parentcatid": {
-	//      "type": "long"
-	//    }
-	//  }
-	//}
-	//}`
 
-	//reses01, err := es.Indices.Create(
-	//	index,
-	//	es.Indices.Create.WithBody(strings.NewReader(mapping)),
-	//)
-	//fmt.Println(reses01, err)
+	var catestruct map[string]interface{}
 
 	for _, result := range results {
 		convertByte, _ := bson.Marshal(result)
 		bson.Unmarshal(convertByte, &catestruct)
-		categoryId := catestruct["_id"].(primitive.ObjectID).Hex()
 		jsonString, _ := json.Marshal(result)
 		req := esapi.IndexRequest{
-			Index:      index,                                 // Index name
-			Body:       strings.NewReader(string(jsonString)), // Document body
-			DocumentID: categoryId,                            // Document ID
-			Refresh:    "true",                                // Refresh
+			Index:   index,                                 // Index name
+			Body:    strings.NewReader(string(jsonString)), // Document body
+			Refresh: "true",                                // Refresh
 		}
 		res, err := req.Do(context.Background(), es)
 		if err != nil {
@@ -208,16 +118,6 @@ func NewService() *Service {
 		log.Println(res)
 
 	}
-
-	//searchResp, err := es.Search(
-	//	es.Search.WithContext(context.Background()),
-	//	es.Search.WithIndex("listid"),
-	//	es.Search.WithQuery("Test"),
-	//	es.Search.WithTrackTotalHits(true),
-	//	es.Search.WithPretty(),
-	//)
-
-	//fmt.Println(searchResp, err)
 
 	return s
 
